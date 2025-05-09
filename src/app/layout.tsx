@@ -16,6 +16,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script src="https://telegram.org/js/telegram-web-app.js?57"></script>
+      </head>
       <body className={`${GeistSans.className} antialiased`}>
         {children}
         <Toaster />
