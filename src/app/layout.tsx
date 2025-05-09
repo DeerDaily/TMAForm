@@ -1,6 +1,6 @@
 import type {Metadata} from 'next';
 import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+// import { GeistMono } from 'geist/font/mono'; // Removed as it's not used and can cause errors if not present
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"; // Shadcn Toaster
 
@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${GeistSans.className} ${GeistMono.className} antialiased`}>
+      <body className={`${GeistSans.className} antialiased`}>
         {children}
         <Toaster />
       </body>

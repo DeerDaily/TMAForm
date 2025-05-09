@@ -115,16 +115,30 @@ function TeleFormPageContent() {
     const callbackUrlEnc = searchParams.get('callbackUrl');
     const descriptionEnc = searchParams.get('description');
 
-    if (!titleEnc || !formEnc || !callbackUrlEnc) {
-      setErrorMessage("Invalid or missing critical form parameters.");
+    const missingParamsMessages: string[] = [];
+    if (!titleEnc) {
+      missingParamsMessages.push("- `title`: The main title for the form.");
+    }
+    if (!formEnc) {
+      missingParamsMessages.push("- `form`: The JSON structure defining form fields.");
+    }
+    if (!callbackUrlEnc) {
+      missingParamsMessages.push("- `callbackUrl`: The URL where form data will be sent.");
+    }
+
+    if (missingParamsMessages.length > 0) {
+      const fullErrorMessage = "Invalid or missing critical form parameters. Please ensure the URL includes the following parameters, correctly base64url encoded:\n\n" +
+                               missingParamsMessages.join("\n");
+      setErrorMessage(fullErrorMessage);
       setAppState('paramError');
       return;
     }
 
     try {
-      const title = base64UrlDecode(titleEnc);
-      const formStr = base64UrlDecode(formEnc);
-      const callbackUrl = base64UrlDecode(callbackUrlEnc);
+      // At this point, titleEnc, formEnc, and callbackUrlEnc are guaranteed to be non-null
+      const title = base64UrlDecode(titleEnc!);
+      const formStr = base64UrlDecode(formEnc!);
+      const callbackUrl = base64UrlDecode(callbackUrlEnc!);
       let description: string | undefined = undefined;
 
       if (descriptionEnc) {
@@ -174,7 +188,8 @@ function TeleFormPageContent() {
       }
     } catch (error: any) {
       console.error("Submission error:", error);
-      setErrorMessage(error.message || "Submission Failed. Please try again later.");
+      const submissionErrorMessage = error.message || "Submission Failed. Please try again later.";
+      setErrorMessage(submissionErrorMessage);
       setAppState('error'); // This state will show ErrorDisplay
       webApp.HapticFeedback.notificationOccurred('error');
       webApp.MainButton.hideProgress();
@@ -182,11 +197,11 @@ function TeleFormPageContent() {
       webApp.MainButton.enable(); // Allow retry
       toast({
         title: "Submission Error",
-        description: errorMessage,
+        description: submissionErrorMessage,
         variant: "destructive",
       });
     }
-  }, [decodedParams, webApp, errorMessage, toast]);
+  }, [decodedParams, webApp, toast]);
 
 
   useEffect(() => {
@@ -277,4 +292,3 @@ export default function Page() {
     </Suspense>
   );
 }
-

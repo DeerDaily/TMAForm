@@ -28,7 +28,7 @@ const ErrorDisplay: FC<ErrorDisplayProps> = ({ message, onClose }) => {
           <CardTitle>Error</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-destructive">{message}</p>
+          <p className="text-sm text-destructive whitespace-pre-wrap">{message}</p>
         </CardContent>
         <CardFooter>
           <Button onClick={handleClose} className="w-full" variant="destructive">
