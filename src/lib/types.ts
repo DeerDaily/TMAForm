@@ -2,8 +2,8 @@
 export interface FormFieldDefinition {
   key: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'date' | 'email' | 'tel' | 'select';
-  default?: string | number | boolean;
+  type: 'string' | 'number' | 'boolean' | 'date' | 'email' | 'tel' | 'select' | 'multiselect';
+  default?: string | number | boolean | string[];
   options?: string[];
   required?: boolean;
 }

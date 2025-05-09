@@ -63,6 +63,11 @@ function TeleFormPageContent() {
           if (field.required) fieldSchema = fieldSchema.min(1, { message: `${field.label} is required.` });
           else fieldSchema = fieldSchema.optional().default(field.default ?? '');
           break;
+        case 'multiselect':
+          fieldSchema = z.array(z.string());
+          if (field.required) fieldSchema = fieldSchema.nonempty({ message: `${field.label} is required (select at least one option).` });
+          else fieldSchema = fieldSchema.optional().default(field.default as string[] ?? []);
+          break;
         default:
           fieldSchema = z.any();
       }
@@ -80,7 +85,11 @@ function TeleFormPageContent() {
     if (decodedParams) {
         formMethods.reset(
             decodedParams.form.reduce((acc, field) => {
-              acc[field.key] = field.default ?? (field.type === 'boolean' ? false : field.type === 'number' ? undefined: '');
+              acc[field.key] = field.default ?? 
+                               (field.type === 'boolean' ? false : 
+                                field.type === 'number' ? undefined : 
+                                field.type === 'multiselect' ? [] : 
+                                '');
               return acc;
             }, {} as Record<string, any>),
             { keepDefaultValues: false } 
@@ -100,8 +109,8 @@ function TeleFormPageContent() {
       // tg.enableClosingConfirmation(); // Good for production
       
       // Apply theme from Telegram
-      document.documentElement.style.setProperty('--background-hsl', tg.themeParams.bg_color || '210 20% 96%');
-      document.documentElement.style.setProperty('--foreground-hsl', tg.themeParams.text_color || '220 10% 20%');
+      // document.documentElement.style.setProperty('--background-hsl', tg.themeParams.bg_color || '210 20% 96%');
+      // document.documentElement.style.setProperty('--foreground-hsl', tg.themeParams.text_color || '220 10% 20%');
       setWebApp(tg);
     } else {
       console.warn("Telegram WebApp SDK not found. Running in standalone mode.");
@@ -115,13 +124,13 @@ function TeleFormPageContent() {
 
     const missingParamsMessages: string[] = [];
     if (!titleEnc) {
-      missingParamsMessages.push("- `title`: The main title for the form.");
+      missingParamsMessages.push("- `title`: (String, Mandatory) The main title for the form.");
     }
     if (!formEnc) {
-      missingParamsMessages.push("- `form`: The JSON structure defining form fields.");
+      missingParamsMessages.push("- `form`: (String, Mandatory) A JSON string representing an array of field definition objects.");
     }
     if (!callbackUrlEnc) {
-      missingParamsMessages.push("- `callbackUrl`: The URL where form data will be sent.");
+      missingParamsMessages.push("- `callbackUrl`: (String, Mandatory) The absolute URL to which the collected form data will be POSTed.");
     }
 
     if (missingParamsMessages.length > 0) {
@@ -151,13 +160,13 @@ function TeleFormPageContent() {
       try {
         parsedFormJson = JSON.parse(formStr);
       } catch (jsonParseError: any) {
-        setErrorMessage(`Invalid 'form' parameter: Not a valid JSON string. Details: ${jsonParseError.message}`);
+        setErrorMessage(`Form structure is invalid: 'form' parameter is not a valid JSON string.\nDetails: ${jsonParseError.message}\nExpected: A JSON array of field objects, e.g., [ { "key": "name", ... }, ... ]`);
         setAppState('paramError');
         return;
       }
 
       if (!Array.isArray(parsedFormJson)) {
-        setErrorMessage("Invalid 'form' parameter: The 'form' definition must be a JSON array of field objects. Example: [ { \"key\": \"name\", ... }, { \"key\": \"email\", ... } ]");
+        setErrorMessage("Form structure is invalid: The 'form' definition must be a JSON array of field objects.\nExample: [ { \"key\": \"name\", ... }, { \"key\": \"email\", ... } ]");
         setAppState('paramError');
         return;
       }
@@ -167,40 +176,40 @@ function TeleFormPageContent() {
       for (let i = 0; i < formFields.length; i++) {
         const field = formFields[i];
         if (typeof field !== 'object' || field === null) {
-          setErrorMessage(`Invalid 'form' parameter: Field definition at index ${i} is not a valid object. Each item in the 'form' array must be a field definition object.`);
+          setErrorMessage(`Form structure is invalid: Field definition at index ${i} is not a valid object.\nExpected: Each item in the 'form' array must be a field definition object.`);
           setAppState('paramError');
           return;
         }
 
         if (!field.key || typeof field.key !== 'string' || field.key.trim() === '') {
-          setErrorMessage(`Invalid 'form' parameter: Field definition at index ${i} (Label: "${field.label || 'N/A'}") is missing a 'key' or 'key' is not a non-empty string. Each field must have a unique string 'key'. Example: { "key": "firstName", "label": "First Name", "type": "string" }`);
+          setErrorMessage(`Form structure is invalid: Field definition at index ${i} (Label: "${field.label || 'N/A'}") is missing a 'key' or 'key' is not a non-empty string.\nExpected: Each field must have a unique string 'key'. Example: { "key": "firstName", "label": "First Name", "type": "string" }`);
           setAppState('paramError');
           return;
         }
 
         if (!field.label || typeof field.label !== 'string' || field.label.trim() === '') {
-          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Index: ${i}) is missing a 'label' or 'label' is not a non-empty string. Each field must have a display 'label'. Example: { "key": "${field.key}", "label": "Your Label", "type": "string" }`);
+          setErrorMessage(`Form structure is invalid: Field definition for key "${field.key}" (Index: ${i}) is missing a 'label' or 'label' is not a non-empty string.\nExpected: Each field must have a display 'label'. Example: { "key": "${field.key}", "label": "Your Label", "type": "string" }`);
           setAppState('paramError');
           return;
         }
 
-        const validTypes = ['string', 'number', 'boolean', 'date', 'email', 'tel', 'select'];
+        const validTypes = ['string', 'number', 'boolean', 'date', 'email', 'tel', 'select', 'multiselect'];
         if (!field.type || typeof field.type !== 'string' || !validTypes.includes(field.type)) {
-          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a missing or invalid 'type'. 'type' must be one of: ${validTypes.join(', ')}. Example: { "key": "${field.key}", "label": "${field.label}", "type": "string" }`);
+          setErrorMessage(`Form structure is invalid: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a missing or invalid 'type'.\nExpected: 'type' must be one of: ${validTypes.join(', ')}. Example: { "key": "${field.key}", "label": "${field.label}", "type": "string" }`);
           setAppState('paramError');
           return;
         }
 
-        if (field.type === 'select') {
+        if (field.type === 'select' || field.type === 'multiselect') {
           if (!field.options || !Array.isArray(field.options) || field.options.length === 0 || field.options.some(opt => typeof opt !== 'string')) {
-            setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Type: 'select', Index: ${i}) is missing 'options', 'options' is not a non-empty array of strings, or contains non-string values. 'options' must be an array of strings. Example: { ..., "type": "select", "options": ["Option 1", "Option 2"] }`);
+            setErrorMessage(`Form structure is invalid: Field definition for key "${field.key}" (Label: "${field.label}", Type: '${field.type}', Index: ${i}) is missing 'options', 'options' is not a non-empty array of strings, or contains non-string values.\nExpected: 'options' must be an array of strings. Example: { ..., "type": "${field.type}", "options": ["Option 1", "Option 2"] }`);
             setAppState('paramError');
             return;
           }
         }
         
         if (field.required !== undefined && typeof field.required !== 'boolean') {
-          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has an invalid 'required' property. If provided, 'required' must be a boolean (true or false).`);
+          setErrorMessage(`Form structure is invalid: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has an invalid 'required' property.\nExpected: If provided, 'required' must be a boolean (true or false).`);
           setAppState('paramError');
           return;
         }
@@ -234,10 +243,30 @@ function TeleFormPageContent() {
                         expectedTypeMessage = `a string value that exists in its 'options' array ([${optionsArray.join(', ')}]) for type 'select'. Current default: "${field.default}".`;
                     }
                     break;
+                case 'multiselect':
+                    const multiSelectOptions = field.options as string[] | undefined;
+                    if (Array.isArray(field.default)) {
+                        const allDefaultsAreStrings = field.default.every(item => typeof item === 'string');
+                        const allDefaultsInOptions = field.default.every(item => multiSelectOptions?.includes(item as string));
+                        typeMatch = allDefaultsAreStrings && allDefaultsInOptions;
+
+                        if (!allDefaultsAreStrings) {
+                            expectedTypeMessage = `an array of strings for type 'multiselect'. One or more items in the default array are not strings.`;
+                        } else if (!multiSelectOptions) {
+                            expectedTypeMessage = `an array of strings, but 'options' array is missing for this multiselect field.`;
+                        } else if (!allDefaultsInOptions) {
+                            const missingDefaults = field.default.filter(item => !multiSelectOptions.includes(item as string));
+                            expectedTypeMessage = `an array of string values that all exist in its 'options' array ([${multiSelectOptions.join(', ')}]) for type 'multiselect'. The following default values are not in options: "${missingDefaults.join('", "')}".`;
+                        }
+                    } else {
+                        typeMatch = false;
+                        expectedTypeMessage = `an array of strings for type 'multiselect'. Current default type: '${defaultType}'.`;
+                    }
+                    break;
             }
 
             if (!typeMatch) {
-                setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a 'default' value of type '${defaultType}' but expected ${expectedTypeMessage}`);
+                setErrorMessage(`Form structure is invalid: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a 'default' value of type '${defaultType === 'object' && Array.isArray(field.default) ? 'array' : defaultType}' but expected ${expectedTypeMessage}`);
                 setAppState('paramError');
                 return;
             }
@@ -249,7 +278,7 @@ function TeleFormPageContent() {
 
     } catch (error: any) { // Catches base64UrlDecode errors or other truly unexpected errors
       console.error("Parameter decoding error or unhandled validation case:", error);
-      const specificErrorMessage = error.message && (error.message.startsWith("Invalid 'form' parameter:") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
+      const specificErrorMessage = error.message && (error.message.startsWith("Form structure is invalid:") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
       setErrorMessage(specificErrorMessage);
       setAppState('paramError');
     }
@@ -333,7 +362,7 @@ function TeleFormPageContent() {
   }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit]);
 
 
-  if (appState === 'loading' || !decodedParams && appState !== 'paramError') {
+  if (appState === 'loading' || (!decodedParams && appState !== 'paramError')) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
         <Card className="p-8 shadow-xl rounded-xl border-border/60 backdrop-blur-md bg-card/80">
