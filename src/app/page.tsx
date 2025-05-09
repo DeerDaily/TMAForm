@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +27,7 @@ function TeleFormPageContent() {
   const [decodedParams, setDecodedParams] = useState<DecodedFormParams | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
+  const submissionLock = useRef(false);
 
   const generateValidationSchema = (fields: FormFieldDefinition[]) => {
     const schemaObject: Record<string, z.ZodTypeAny> = {};
@@ -49,16 +51,14 @@ function TeleFormPageContent() {
           else fieldSchema = fieldSchema.optional().default(field.default ?? '').or(z.literal('').transform(() => undefined)).refine(val => val === undefined || z.string().regex(/^\+?[0-9\s-()]*$/).safeParse(val).success, { message: "Invalid phone number." });
           break;
         case 'number':
-          fieldSchema = z.coerce.number(); // Coerce to number
+          fieldSchema = z.coerce.number(); 
            if (!field.required) fieldSchema = fieldSchema.optional().default(field.default ?? undefined);
-          // For required number, zod makes it non-optional by default. If default is 0, it's fine.
-          // If required and default is not set, it must be provided.
           break;
         case 'boolean':
           fieldSchema = z.boolean().default(field.default as boolean ?? false);
           break;
         case 'date':
-          fieldSchema = z.string(); // Input type="date" returns "YYYY-MM-DD"
+          fieldSchema = z.string(); 
           if (field.required) fieldSchema = fieldSchema.min(1, { message: `${field.label} is required.` });
           else fieldSchema = fieldSchema.optional().default(field.default ?? '');
           break;
@@ -77,7 +77,7 @@ function TeleFormPageContent() {
   
   const formMethods = useForm<any>({
     resolver: decodedParams ? zodResolver(generateValidationSchema(decodedParams.form)) : undefined,
-    mode: "onChange", // Validate on change to enable/disable MainButton
+    mode: "onChange", 
   });
 
   useEffect(() => {
@@ -93,23 +93,19 @@ function TeleFormPageContent() {
             }, {} as Record<string, any>),
             { keepDefaultValues: false } 
           );
-        formMethods.trigger(); // Trigger validation after reset for MainButton state
+        formMethods.trigger(); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [decodedParams, formMethods.reset, formMethods.trigger]);
 
 
   useEffect(() => {
-    // Initialize Telegram WebApp
     if (typeof window !== "undefined" && window.Telegram && window.Telegram.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
       tg.expand();
-      // tg.enableClosingConfirmation(); // Good for production
       
-      // Apply theme from Telegram for MainButton styling consistency
-      // This sets the button's appearance. It will be shown/hidden/text-changed later.
-      tg.MainButton.setText("Submit"); // Set a default text early
+      tg.MainButton.setText("Submit");
       if (tg.themeParams.button_color && tg.themeParams.button_text_color) {
         tg.MainButton.setParams({
           color: tg.themeParams.button_color,
@@ -122,23 +118,18 @@ function TeleFormPageContent() {
       console.warn("Telegram WebApp SDK not found. Running in standalone mode.");
     }
 
-    // Decode parameters
     const titleEnc = searchParams.get('title');
     const formEnc = searchParams.get('form');
     const callbackUrlEnc = searchParams.get('callbackUrl');
     const descriptionEnc = searchParams.get('description');
+    const metadataEnc = searchParams.get('metadata');
+    const signatureEnc = searchParams.get('signature');
 
     const missingParamsMessages: string[] = [];
-    if (!titleEnc) {
-      missingParamsMessages.push("- `title`: (String, Mandatory) The main title for the form.");
-    }
-    if (!formEnc) {
-      missingParamsMessages.push("- `form`: (String, Mandatory) A JSON string representing an array of field definition objects.");
-    }
-    if (!callbackUrlEnc) {
-      missingParamsMessages.push("- `callbackUrl`: (String, Mandatory) The absolute URL to which the collected form data will be POSTed.");
-    }
-
+    if (!titleEnc) missingParamsMessages.push("- `title`: (String, Mandatory) The main title for the form.");
+    if (!formEnc) missingParamsMessages.push("- `form`: (String, Mandatory) A JSON string representing an array of field definition objects.");
+    if (!callbackUrlEnc) missingParamsMessages.push("- `callbackUrl`: (String, Mandatory) The absolute URL to which the collected form data will be POSTed.");
+    
     if (missingParamsMessages.length > 0) {
       const fullErrorMessage = "Invalid or missing critical form parameters. Please ensure the URL includes the following parameters, correctly base64url encoded:\n\n" +
                                missingParamsMessages.join("\n");
@@ -148,18 +139,24 @@ function TeleFormPageContent() {
     }
 
     try {
-      // titleEnc, formEnc, and callbackUrlEnc are guaranteed to be non-null here due to the check above.
       const title = base64UrlDecode(titleEnc!);
       const formStr = base64UrlDecode(formEnc!);
       const callbackUrl = base64UrlDecode(callbackUrlEnc!);
       let description: string | undefined = undefined;
+      let metadata: string | undefined = undefined;
+      let signature: string | undefined = undefined;
 
       if (descriptionEnc) {
-        try {
-          description = base64UrlDecode(descriptionEnc);
-        } catch (e) {
-          console.warn("Failed to decode description, proceeding without it.");
-        }
+        try { description = base64UrlDecode(descriptionEnc); } 
+        catch (e) { console.warn("Failed to decode description, proceeding without it."); }
+      }
+      if (metadataEnc) {
+        try { metadata = base64UrlDecode(metadataEnc); }
+        catch (e) { console.warn("Failed to decode metadata, proceeding without it."); }
+      }
+      if (signatureEnc) {
+        try { signature = base64UrlDecode(signatureEnc); }
+        catch (e) { console.warn("Failed to decode signature, proceeding without it."); }
       }
       
       let parsedFormJson: any;
@@ -279,10 +276,10 @@ function TeleFormPageContent() {
         }
       }
 
-      setDecodedParams({ title, form: formFields, callbackUrl, description });
+      setDecodedParams({ title, form: formFields, callbackUrl, description, metadata, signature });
       setAppState('formDisplay');
 
-    } catch (error: any) { // Catches base64UrlDecode errors or other truly unexpected errors
+    } catch (error: any) { 
       console.error("Parameter decoding error or unhandled validation case:", error);
       const specificErrorMessage = error.message && (error.message.startsWith("Form structure is invalid:") || error.message.startsWith("Invalid or missing critical form parameters") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
       setErrorMessage(specificErrorMessage);
@@ -291,25 +288,32 @@ function TeleFormPageContent() {
   }, [searchParams]);
 
 
-  const handleFormSubmit = useCallback(async (data: any) => {
-    if (!decodedParams || !webApp) return;
+  const handleFormSubmit = useCallback(async (formData: any) => {
+    if (!decodedParams || !webApp || submissionLock.current) return;
 
+    submissionLock.current = true;
     setAppState('submitting');
     webApp.MainButton.showProgress(true);
     webApp.MainButton.disable();
 
+    const payload = {
+      ...formData,
+      ...(decodedParams.metadata && { metadata: decodedParams.metadata }),
+      ...(decodedParams.signature && { signature: decodedParams.signature }),
+    };
+
     try {
-      console.log(decodedParams.callbackUrl);
       const response = await fetch(decodedParams.callbackUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         setAppState('success');
         webApp.MainButton.hide();
         webApp.HapticFeedback.notificationOccurred('success');
+        // submissionLock remains true as we transition to a final state
       } else {
         const errorText = await response.text();
         throw new Error(`Submission failed: ${response.status} ${errorText || response.statusText}`);
@@ -323,6 +327,7 @@ function TeleFormPageContent() {
       webApp.MainButton.hideProgress();
       webApp.MainButton.setText("Retry"); 
       webApp.MainButton.enable(); 
+      submissionLock.current = false; // Release lock for retry
       toast({
         title: "Submission Error",
         description: submissionErrorMessage,
@@ -341,23 +346,48 @@ function TeleFormPageContent() {
     webApp.MainButton.setText("Submit");
     webApp.MainButton.show();
 
-    if (formMethods.formState.isValid && !formMethods.formState.isSubmitting) {
+    if (formMethods.formState.isValid && !formMethods.formState.isSubmitting && !submissionLock.current) {
         webApp.MainButton.enable();
     } else {
         webApp.MainButton.disable();
     }
     
-    const mainButtonClickHandler = () => formMethods.handleSubmit(handleFormSubmit)();
+    const rHFormSubmitHandler = formMethods.handleSubmit(handleFormSubmit);
+    const mainButtonActualClickHandler = useCallback(() => {
+      rHFormSubmitHandler();
+    }, [rHFormSubmitHandler]);
     
-    webApp.MainButton.onClick(mainButtonClickHandler);
-
-    return () => {
-      // Re-assigning onClick typically replaces the listener in most SDKs.
-      // If specific offClick is needed and available:
-      // webApp.MainButton.offClick(mainButtonClickHandler); 
-    };
+    // Prefer onEvent/offEvent if available for robust listener management
+    if (typeof webApp.onEvent === 'function' && typeof webApp.offEvent === 'function') {
+        webApp.onEvent('mainButtonClicked', mainButtonActualClickHandler);
+        return () => {
+            webApp.offEvent('mainButtonClicked', mainButtonActualClickHandler);
+        };
+    } else {
+        // Fallback to MainButton.onClick, assuming it replaces the handler
+        console.warn("Using MainButton.onClick as onEvent/offEvent are not available in this Telegram WebApp version. Ensure SDK handles listener replacement correctly.");
+        webApp.MainButton.onClick(mainButtonActualClickHandler);
+        return () => {
+            // Attempt to clear by setting to a no-op if MainButton.offClick is available or if no other cleanup method.
+            // This part is speculative as offClick is not standard on MainButton itself.
+            if (typeof webApp.MainButton.offClick === 'function') {
+              try {
+                webApp.MainButton.offClick(mainButtonActualClickHandler);
+              } catch (e) {
+                // Some SDK versions might throw if offClick is not fully implemented
+                console.warn("Error calling MainButton.offClick", e);
+                 webApp.MainButton.onClick(() => {}); // Last resort: set to no-op
+              }
+            } else {
+              // If no offClick, setting to no-op to potentially clear the previous one,
+              // though this relies on onClick overwriting behavior.
+              webApp.MainButton.onClick(() => {});
+            }
+        };
+    }
+    
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit]);
+  }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit, formMethods.handleSubmit]);
 
 
   if (appState === 'loading' || (!decodedParams && appState !== 'paramError')) {
@@ -377,7 +407,7 @@ function TeleFormPageContent() {
 
   if (appState === 'paramError') return <ErrorDisplay message={errorMessage} />;
   if (appState === 'success') return <SuccessDisplay />;
-  if (appState === 'error') return <ErrorDisplay message={errorMessage} onClose={() => webApp?.close()} />; 
+  if (appState === 'error') return <ErrorDisplay message={errorMessage} onClose={() => { submissionLock.current = false; webApp?.close();}} />; 
 
   if (appState === 'formDisplay' && decodedParams) {
     return (
@@ -386,7 +416,7 @@ function TeleFormPageContent() {
         description={decodedParams.description}
         fields={decodedParams.form}
         formMethods={formMethods}
-        onSubmit={handleFormSubmit}
+        onSubmit={handleFormSubmit} // This will be wrapped by RHF's handleSubmit
       />
     );
   }
