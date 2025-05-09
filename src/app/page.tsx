@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
@@ -108,9 +107,16 @@ function TeleFormPageContent() {
       tg.expand();
       // tg.enableClosingConfirmation(); // Good for production
       
-      // Apply theme from Telegram
-      // document.documentElement.style.setProperty('--background-hsl', tg.themeParams.bg_color || '210 20% 96%');
-      // document.documentElement.style.setProperty('--foreground-hsl', tg.themeParams.text_color || '220 10% 20%');
+      // Apply theme from Telegram for MainButton styling consistency
+      // This sets the button's appearance. It will be shown/hidden/text-changed later.
+      tg.MainButton.setText("Submit"); // Set a default text early
+      if (tg.themeParams.button_color && tg.themeParams.button_text_color) {
+        tg.MainButton.setParams({
+          color: tg.themeParams.button_color,
+          text_color: tg.themeParams.button_text_color,
+        });
+      }
+      
       setWebApp(tg);
     } else {
       console.warn("Telegram WebApp SDK not found. Running in standalone mode.");
@@ -278,7 +284,7 @@ function TeleFormPageContent() {
 
     } catch (error: any) { // Catches base64UrlDecode errors or other truly unexpected errors
       console.error("Parameter decoding error or unhandled validation case:", error);
-      const specificErrorMessage = error.message && (error.message.startsWith("Form structure is invalid:") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
+      const specificErrorMessage = error.message && (error.message.startsWith("Form structure is invalid:") || error.message.startsWith("Invalid or missing critical form parameters") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
       setErrorMessage(specificErrorMessage);
       setAppState('paramError');
     }
@@ -340,23 +346,14 @@ function TeleFormPageContent() {
         webApp.MainButton.disable();
     }
     
-    // Memoize the onClick handler to prevent re-adding if dependencies are stable
     const mainButtonClickHandler = () => formMethods.handleSubmit(handleFormSubmit)();
     
     webApp.MainButton.onClick(mainButtonClickHandler);
 
     return () => {
-      // Attempt to remove the specific listener.
-      // If Telegram SDK doesn't support removing a specific listener by reference like this,
-      // this might not work as expected. A common workaround is to ensure onClick can be called multiple times
-      // safely or only re-assign if the handler function instance changes.
-      // For many SDKs, re-assigning onClick replaces the old one.
-      // webApp.MainButton.offClick(mainButtonClickHandler); // Assuming this exists and works.
-      // If `offClick` is not reliable or doesn't exist, this cleanup might need to be more robust
-      // or rely on the fact that re-assigning `onClick` typically replaces the listener.
-      // For safety, if multiple handlers are an issue, one might clear it by setting a no-op,
-      // but that would also clear it if another effect set a different handler.
-      // The current approach of re-assigning each time is often sufficient if the SDK handles it as a replacement.
+      // Re-assigning onClick typically replaces the listener in most SDKs.
+      // If specific offClick is needed and available:
+      // webApp.MainButton.offClick(mainButtonClickHandler); 
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit]);
