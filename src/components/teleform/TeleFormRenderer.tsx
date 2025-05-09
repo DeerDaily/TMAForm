@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -40,7 +41,7 @@ const TeleFormRenderer: FC<TeleFormRendererProps> = ({ title, description, field
                         {field.required && <span className="text-destructive ml-1">*</span>}
                       </FormLabel>
                       <FormControl>
-                        <>
+                        <div> {/* Replaced <> with <div> to accept props from FormControl */}
                           {field.type === 'string' && <Input type="text" {...rhfField} value={rhfField.value ?? ''} />}
                           {field.type === 'number' && <Input type="number" {...rhfField} value={rhfField.value ?? ''} onChange={e => rhfField.onChange(e.target.valueAsNumber)} />}
                           {field.type === 'email' && <Input type="email" {...rhfField} value={rhfField.value ?? ''} />}
@@ -57,12 +58,12 @@ const TeleFormRenderer: FC<TeleFormRendererProps> = ({ title, description, field
                                 htmlFor={`${field.key}-checkbox`}
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                               >
-                                Yes
+                                Yes {/* Consider making this customizable or removing if label is sufficient */}
                               </label>
                             </div>
                           )}
                           {field.type === 'select' && field.options && (
-                            <Select onValueChange={rhfField.onChange} defaultValue={rhfField.value}>
+                            <Select onValueChange={rhfField.onChange} defaultValue={rhfField.value} value={rhfField.value}>
                               <SelectTrigger>
                                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
                               </SelectTrigger>
@@ -75,7 +76,7 @@ const TeleFormRenderer: FC<TeleFormRendererProps> = ({ title, description, field
                               </SelectContent>
                             </Select>
                           )}
-                        </>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
