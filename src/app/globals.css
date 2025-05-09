@@ -4,73 +4,91 @@
 
 @layer base {
   :root {
-    --background: 220 10% 96%; /* Very light cool gray */
-    --foreground: 220 15% 25%; /* Dark cool gray - "metal black" text */
-    --card: 220 20% 97%; /* Almost white, cool tint */
-    --card-foreground: 220 15% 25%;
-    --popover: 220 20% 97%;
-    --popover-foreground: 220 15% 25%;
-    --primary: 25 90% 53%; /* Orange */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 220 15% 45%; /* Medium-dark cool gray - "metal black" secondary elements */
-    --secondary-foreground: 0 0% 98%; /* Off-white */
-    --muted: 220 15% 90%; /* Light cool gray */
-    --muted-foreground: 220 10% 55%; /* Medium cool gray */
-    --accent: 25 90% 53%; /* Orange */
-    --accent-foreground: 0 0% 100%; /* White */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 85%; /* Light cool gray border */
-    --input: 220 15% 92%; /* Very light cool gray input bg */
-    --ring: 25 90% 53%; /* Orange */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --background: 220 10% 8%; /* Very dark cool gray (near black) */
+    --foreground: 220 10% 90%; /* Light cool gray text */
+    --card: 220 10% 12%; /* Slightly lighter dark gray for cards */
+    --card-foreground: 220 10% 90%; /* Consistent text color */
+    --popover: 220 10% 10%; /* Dark popover */
+    --popover-foreground: 220 10% 90%; /* Consistent text color */
+    
+    --primary: 220 10% 20%; /* "Metal black" primary actions - a distinct dark gray */
+    --primary-foreground: 0 0% 98%; /* Off-white text for high contrast on primary */
+    
+    --secondary: 25 90% 53%; /* Vibrant orange for secondary actions */
+    --secondary-foreground: 0 0% 100%; /* White text on orange */
+    
+    --muted: 220 10% 25%; /* Muted dark gray */
+    --muted-foreground: 220 10% 65%; /* Lighter gray for muted text */
+    
+    --accent: 25 90% 53%; /* Orange for accents (consistent with secondary) */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    
+    --destructive: 0 75% 55%; /* A clear red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
+    
+    --border: 220 10% 30%; /* Subtle border */
+    --input: 220 10% 18%; /* Input background, distinguishable */
+    --ring: 25 90% 53%; /* Orange for focus rings */
+    
+    --chart-1: 220 70% 50%; /* Blue */
+    --chart-2: 160 60% 45%; /* Teal/Green */
+    --chart-3: 30 80% 55%;  /* Orange/Yellow */
+    --chart-4: 280 65% 60%; /* Purple */
+    --chart-5: 340 75% 55%; /* Pink/Red */
+    
     --radius: 0.5rem;
-    --sidebar-background: 220 10% 94%;
-    --sidebar-foreground: 220 15% 25%;
-    --sidebar-primary: 25 90% 53%; /* Orange */
-    --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 220 15% 88%; /* Light cool gray hover bg */
-    --sidebar-accent-foreground: 220 15% 20%; /* Dark cool gray text on hover */
-    --sidebar-border: 220 15% 85%;
+    
+    --sidebar-background: 220 10% 10%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 220 10% 20%; /* Metal black */
+    --sidebar-primary-foreground: 0 0% 98%; /* White */
+    --sidebar-accent: 25 90% 53%; /* Orange */
+    --sidebar-accent-foreground: 0 0% 100%; /* White */
+    --sidebar-border: 220 10% 25%;
     --sidebar-ring: 25 90% 53%; /* Orange */
   }
+
   .dark {
-    --background: 220 15% 10%; /* Dark cool gray - "metal black" bg */
-    --foreground: 220 10% 85%; /* Light cool gray text */
-    --card: 220 15% 15%; /* Darker cool gray card */
-    --card-foreground: 220 10% 85%;
-    --popover: 220 15% 15%;
-    --popover-foreground: 220 10% 85%;
-    --primary: 25 85% 50%; /* Orange */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 220 10% 30%; /* Medium-dark cool gray - "metal black" secondary */
-    --secondary-foreground: 0 0% 98%; /* Off-white */
-    --muted: 220 15% 20%; /* Dark cool gray muted */
-    --muted-foreground: 220 10% 65%; /* Medium-light cool gray */
-    --accent: 25 85% 50%; /* Orange */
-    --accent-foreground: 0 0% 100%; /* White */
-    --destructive: 0 70% 45%; /* Brighter red for dark mode */
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 25%; /* Dark cool gray border */
-    --input: 220 15% 22%; /* Dark cool gray input bg */
-    --ring: 25 85% 50%; /* Orange */
+    --background: 220 10% 8%; /* Very dark cool gray (near black) */
+    --foreground: 220 10% 90%; /* Light cool gray text */
+    --card: 220 10% 12%; /* Slightly lighter dark gray for cards */
+    --card-foreground: 220 10% 90%; /* Consistent text color */
+    --popover: 220 10% 10%; /* Dark popover */
+    --popover-foreground: 220 10% 90%; /* Consistent text color */
+    
+    --primary: 220 10% 20%; /* "Metal black" primary actions - a distinct dark gray */
+    --primary-foreground: 0 0% 98%; /* Off-white text for high contrast on primary */
+    
+    --secondary: 25 90% 53%; /* Vibrant orange for secondary actions */
+    --secondary-foreground: 0 0% 100%; /* White text on orange */
+    
+    --muted: 220 10% 25%; /* Muted dark gray */
+    --muted-foreground: 220 10% 65%; /* Lighter gray for muted text */
+    
+    --accent: 25 90% 53%; /* Orange for accents (consistent with secondary) */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    
+    --destructive: 0 75% 55%; /* A clear red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
+    
+    --border: 220 10% 30%; /* Subtle border */
+    --input: 220 10% 18%; /* Input background, distinguishable */
+    --ring: 25 90% 53%; /* Orange for focus rings */
+    
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 220 15% 12%;
+    
+    --sidebar-background: 220 10% 10%;
     --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 25 85% 50%; /* Orange */
-    --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 220 10% 25%; /* Medium-dark cool gray hover bg */
-    --sidebar-accent-foreground: 220 10% 90%; /* Light cool gray text on hover */
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 25 85% 50%; /* Orange */
+    --sidebar-primary: 220 10% 20%; /* Metal black */
+    --sidebar-primary-foreground: 0 0% 98%; /* White */
+    --sidebar-accent: 25 90% 53%; /* Orange */
+    --sidebar-accent-foreground: 0 0% 100%; /* White */
+    --sidebar-border: 220 10% 25%;
+    --sidebar-ring: 25 90% 53%; /* Orange */
   }
 }
 
