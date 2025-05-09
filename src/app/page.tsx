@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
@@ -101,12 +102,9 @@ function TeleFormPageContent() {
       // Apply theme from Telegram
       document.documentElement.style.setProperty('--background-hsl', tg.themeParams.bg_color || '210 20% 96%');
       document.documentElement.style.setProperty('--foreground-hsl', tg.themeParams.text_color || '220 10% 20%');
-      // You might need to convert hex to HSL if you want to use HSL variables extensively
-
       setWebApp(tg);
     } else {
       console.warn("Telegram WebApp SDK not found. Running in standalone mode.");
-      // For local development, allow proceeding if query params are faked
     }
 
     // Decode parameters
@@ -135,7 +133,7 @@ function TeleFormPageContent() {
     }
 
     try {
-      // At this point, titleEnc, formEnc, and callbackUrlEnc are guaranteed to be non-null
+      // titleEnc, formEnc, and callbackUrlEnc are guaranteed to be non-null here due to the check above.
       const title = base64UrlDecode(titleEnc!);
       const formStr = base64UrlDecode(formEnc!);
       const callbackUrl = base64UrlDecode(callbackUrlEnc!);
@@ -149,16 +147,110 @@ function TeleFormPageContent() {
         }
       }
       
-      const form = JSON.parse(formStr) as FormFieldDefinition[];
-      if (!Array.isArray(form) || form.some(f => !f.key || !f.label || !f.type)) {
-          throw new Error("Form structure is invalid.");
+      let parsedFormJson: any;
+      try {
+        parsedFormJson = JSON.parse(formStr);
+      } catch (jsonParseError: any) {
+        setErrorMessage(`Invalid 'form' parameter: Not a valid JSON string. Details: ${jsonParseError.message}`);
+        setAppState('paramError');
+        return;
       }
 
-      setDecodedParams({ title, form, callbackUrl, description });
+      if (!Array.isArray(parsedFormJson)) {
+        setErrorMessage("Invalid 'form' parameter: The 'form' definition must be a JSON array of field objects. Example: [ { \"key\": \"name\", ... }, { \"key\": \"email\", ... } ]");
+        setAppState('paramError');
+        return;
+      }
+
+      const formFields = parsedFormJson as FormFieldDefinition[];
+
+      for (let i = 0; i < formFields.length; i++) {
+        const field = formFields[i];
+        if (typeof field !== 'object' || field === null) {
+          setErrorMessage(`Invalid 'form' parameter: Field definition at index ${i} is not a valid object. Each item in the 'form' array must be a field definition object.`);
+          setAppState('paramError');
+          return;
+        }
+
+        if (!field.key || typeof field.key !== 'string' || field.key.trim() === '') {
+          setErrorMessage(`Invalid 'form' parameter: Field definition at index ${i} (Label: "${field.label || 'N/A'}") is missing a 'key' or 'key' is not a non-empty string. Each field must have a unique string 'key'. Example: { "key": "firstName", "label": "First Name", "type": "string" }`);
+          setAppState('paramError');
+          return;
+        }
+
+        if (!field.label || typeof field.label !== 'string' || field.label.trim() === '') {
+          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Index: ${i}) is missing a 'label' or 'label' is not a non-empty string. Each field must have a display 'label'. Example: { "key": "${field.key}", "label": "Your Label", "type": "string" }`);
+          setAppState('paramError');
+          return;
+        }
+
+        const validTypes = ['string', 'number', 'boolean', 'date', 'email', 'tel', 'select'];
+        if (!field.type || typeof field.type !== 'string' || !validTypes.includes(field.type)) {
+          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a missing or invalid 'type'. 'type' must be one of: ${validTypes.join(', ')}. Example: { "key": "${field.key}", "label": "${field.label}", "type": "string" }`);
+          setAppState('paramError');
+          return;
+        }
+
+        if (field.type === 'select') {
+          if (!field.options || !Array.isArray(field.options) || field.options.length === 0 || field.options.some(opt => typeof opt !== 'string')) {
+            setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Type: 'select', Index: ${i}) is missing 'options', 'options' is not a non-empty array of strings, or contains non-string values. 'options' must be an array of strings. Example: { ..., "type": "select", "options": ["Option 1", "Option 2"] }`);
+            setAppState('paramError');
+            return;
+          }
+        }
+        
+        if (field.required !== undefined && typeof field.required !== 'boolean') {
+          setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has an invalid 'required' property. If provided, 'required' must be a boolean (true or false).`);
+          setAppState('paramError');
+          return;
+        }
+
+        if (field.default !== undefined) {
+            const defaultType = typeof field.default;
+            let expectedTypeMessage = '';
+            let typeMatch = false;
+
+            switch(field.type) {
+                case 'string': case 'email': case 'tel': case 'date':
+                    typeMatch = defaultType === 'string';
+                    expectedTypeMessage = `a string for type '${field.type}'.`;
+                    break;
+                case 'number':
+                    typeMatch = defaultType === 'number';
+                    expectedTypeMessage = `a number for type 'number'.`;
+                    break;
+                case 'boolean':
+                    typeMatch = defaultType === 'boolean';
+                    expectedTypeMessage = `a boolean (true or false) for type 'boolean'.`;
+                    break;
+                case 'select':
+                    const optionsArray = field.options as string[] | undefined;
+                    typeMatch = defaultType === 'string' && !!optionsArray && optionsArray.includes(field.default as string);
+                    if (defaultType !== 'string') {
+                        expectedTypeMessage = `a string for type 'select'.`;
+                    } else if (!optionsArray) {
+                         expectedTypeMessage = `a string, but 'options' array is missing for this select field.`;
+                    } else if (!optionsArray.includes(field.default as string)) {
+                        expectedTypeMessage = `a string value that exists in its 'options' array ([${optionsArray.join(', ')}]) for type 'select'. Current default: "${field.default}".`;
+                    }
+                    break;
+            }
+
+            if (!typeMatch) {
+                setErrorMessage(`Invalid 'form' parameter: Field definition for key "${field.key}" (Label: "${field.label}", Index: ${i}) has a 'default' value of type '${defaultType}' but expected ${expectedTypeMessage}`);
+                setAppState('paramError');
+                return;
+            }
+        }
+      }
+
+      setDecodedParams({ title, form: formFields, callbackUrl, description });
       setAppState('formDisplay');
-    } catch (error: any) {
-      console.error("Parameter decoding/parsing error:", error);
-      setErrorMessage(error.message || "Failed to initialize form. Invalid parameters.");
+
+    } catch (error: any) { // Catches base64UrlDecode errors or other truly unexpected errors
+      console.error("Parameter decoding error or unhandled validation case:", error);
+      const specificErrorMessage = error.message && (error.message.startsWith("Invalid 'form' parameter:") || error.message === "Invalid base64url string") ? error.message : "Failed to initialize form due to an unexpected error in parameter processing.";
+      setErrorMessage(specificErrorMessage);
       setAppState('paramError');
     }
   }, [searchParams]);
@@ -190,11 +282,11 @@ function TeleFormPageContent() {
       console.error("Submission error:", error);
       const submissionErrorMessage = error.message || "Submission Failed. Please try again later.";
       setErrorMessage(submissionErrorMessage);
-      setAppState('error'); // This state will show ErrorDisplay
+      setAppState('error'); 
       webApp.HapticFeedback.notificationOccurred('error');
       webApp.MainButton.hideProgress();
-      webApp.MainButton.setText("Retry"); // Or keep "Submit"
-      webApp.MainButton.enable(); // Allow retry
+      webApp.MainButton.setText("Retry"); 
+      webApp.MainButton.enable(); 
       toast({
         title: "Submission Error",
         description: submissionErrorMessage,
@@ -219,19 +311,23 @@ function TeleFormPageContent() {
         webApp.MainButton.disable();
     }
     
-    const onClick = () => formMethods.handleSubmit(handleFormSubmit)();
-    webApp.MainButton.onClick(onClick);
+    // Memoize the onClick handler to prevent re-adding if dependencies are stable
+    const mainButtonClickHandler = () => formMethods.handleSubmit(handleFormSubmit)();
+    
+    webApp.MainButton.onClick(mainButtonClickHandler);
 
     return () => {
-      // Important: Remove listener to avoid multiple submissions if component re-renders.
-      // The Telegram SDK might not have a simple removeListener for onClick.
-      // A common pattern is to set it to a no-op or handle this carefully.
-      // For simplicity here, we re-assign on each relevant effect run.
-      // If issues arise, an intermediate variable or ref for the callback could be used.
-      webApp.MainButton.offClick(onClick); // Assuming offClick exists or similar. If not, this needs care.
-                                           // If no offClick, ensure onClick is idempotent or managed.
-                                           // A common workaround is to set a new empty function if offClick is not available:
-                                           // webApp.MainButton.onClick(() => {}); 
+      // Attempt to remove the specific listener.
+      // If Telegram SDK doesn't support removing a specific listener by reference like this,
+      // this might not work as expected. A common workaround is to ensure onClick can be called multiple times
+      // safely or only re-assign if the handler function instance changes.
+      // For many SDKs, re-assigning onClick replaces the old one.
+      // webApp.MainButton.offClick(mainButtonClickHandler); // Assuming this exists and works.
+      // If `offClick` is not reliable or doesn't exist, this cleanup might need to be more robust
+      // or rely on the fact that re-assigning `onClick` typically replaces the listener.
+      // For safety, if multiple handlers are an issue, one might clear it by setting a no-op,
+      // but that would also clear it if another effect set a different handler.
+      // The current approach of re-assigning each time is often sufficient if the SDK handles it as a replacement.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit]);
@@ -239,12 +335,12 @@ function TeleFormPageContent() {
 
   if (appState === 'loading' || !decodedParams && appState !== 'paramError') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-8 shadow-lg">
+      <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
+        <Card className="p-8 shadow-xl rounded-xl border-border/60 backdrop-blur-md bg-card/80">
           <CardHeader>
-            <CardTitle className="text-center">Loading Form...</CardTitle>
+            <CardTitle className="text-center text-2xl font-semibold text-primary">Loading Form...</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex justify-center pt-6">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </CardContent>
         </Card>
@@ -254,7 +350,7 @@ function TeleFormPageContent() {
 
   if (appState === 'paramError') return <ErrorDisplay message={errorMessage} />;
   if (appState === 'success') return <SuccessDisplay />;
-  if (appState === 'error') return <ErrorDisplay message={errorMessage} onClose={() => webApp?.close()} />; // Provide an explicit close for retry failure
+  if (appState === 'error') return <ErrorDisplay message={errorMessage} onClose={() => webApp?.close()} />; 
 
   if (appState === 'formDisplay' && decodedParams) {
     return (
@@ -268,21 +364,19 @@ function TeleFormPageContent() {
     );
   }
   
-  // Fallback for any unhandled state, though ideally not reached.
   return <ErrorDisplay message="An unexpected error occurred. Please try closing and reopening." />;
 }
 
 
 export default function Page() {
-  // Suspense is required by Next.js for useSearchParams hook
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-8 shadow-lg">
+      <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
+        <Card className="p-8 shadow-xl rounded-xl border-border/60 backdrop-blur-md bg-card/80">
           <CardHeader>
-            <CardTitle className="text-center">Loading...</CardTitle>
+            <CardTitle className="text-center text-2xl font-semibold text-primary">Loading...</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex justify-center pt-6">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </CardContent>
         </Card>
@@ -292,3 +386,4 @@ export default function Page() {
     </Suspense>
   );
 }
+
