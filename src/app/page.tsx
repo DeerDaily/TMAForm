@@ -276,7 +276,7 @@ function TeleFormPageContent() {
         }
       }
 
-      setDecodedParams({ title, form: formFields, callbackUrl, description, metadata, signature });
+      setDecodedParams({ title, form: formFields, callbackUrl, description, metadata, metadataEnc, signature, signatureEnc });
       setAppState('formDisplay');
 
     } catch (error: any) { 
@@ -298,8 +298,8 @@ function TeleFormPageContent() {
 
     const payload = {
       ...formData,
-      ...(decodedParams.metadata && { metadata: decodedParams.metadata }),
-      ...(decodedParams.signature && { signature: decodedParams.signature }),
+      ...(decodedParams.metadata && { metadata: decodedParams.metadataEnc }),
+      ...(decodedParams.signature && { signature: decodedParams.signatureEnc }),
     };
 
     try {

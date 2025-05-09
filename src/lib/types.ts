@@ -15,6 +15,8 @@ export interface DecodedFormParams {
   description?: string;
   metadata?: string; // Added
   signature?: string; // Added
+  metadataEnc?: string; // Added
+  signatureEnc?: string; // Added
 }
 
 // Minimal Telegram WebApp types to avoid adding new dependencies if not allowed
