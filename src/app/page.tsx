@@ -336,6 +336,12 @@ function TeleFormPageContent() {
     }
   }, [decodedParams, webApp, toast]);
 
+  const onMainButtonClick = useCallback(() => {
+    if (formMethods) {
+      formMethods.handleSubmit(handleFormSubmit)();
+    }
+  }, [formMethods, handleFormSubmit]);
+
 
   useEffect(() => {
     if (!webApp || !decodedParams || appState !== 'formDisplay') {
@@ -351,28 +357,26 @@ function TeleFormPageContent() {
     } else {
         webApp.MainButton.disable();
     }
-    
-    const rHFormSubmitHandler = formMethods.handleSubmit(handleFormSubmit);
-    const mainButtonActualClickHandler = useCallback(() => {
-      rHFormSubmitHandler();
-    }, [rHFormSubmitHandler]);
-    
+        
     // Prefer onEvent/offEvent if available for robust listener management
     if (typeof webApp.onEvent === 'function' && typeof webApp.offEvent === 'function') {
-        webApp.onEvent('mainButtonClicked', mainButtonActualClickHandler);
+        webApp.onEvent('mainButtonClicked', onMainButtonClick);
         return () => {
-            webApp.offEvent('mainButtonClicked', mainButtonActualClickHandler);
+            webApp.offEvent('mainButtonClicked', onMainButtonClick);
         };
     } else {
         // Fallback to MainButton.onClick, assuming it replaces the handler
         console.warn("Using MainButton.onClick as onEvent/offEvent are not available in this Telegram WebApp version. Ensure SDK handles listener replacement correctly.");
-        webApp.MainButton.onClick(mainButtonActualClickHandler);
+        webApp.MainButton.onClick(onMainButtonClick);
         return () => {
             // Attempt to clear by setting to a no-op if MainButton.offClick is available or if no other cleanup method.
             // This part is speculative as offClick is not standard on MainButton itself.
             if (typeof webApp.MainButton.offClick === 'function') {
               try {
-                webApp.MainButton.offClick(mainButtonActualClickHandler);
+                // It's important that the same function reference is passed to offClick
+                // However, the original code had a new function in useEffect, so direct offClick might not work as expected without stable reference
+                // This might not effectively remove the listener if onMainButtonClick was not the exact one registered
+                webApp.MainButton.offClick(onMainButtonClick); 
               } catch (e) {
                 // Some SDK versions might throw if offClick is not fully implemented
                 console.warn("Error calling MainButton.offClick", e);
@@ -386,8 +390,7 @@ function TeleFormPageContent() {
         };
     }
     
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, handleFormSubmit, formMethods.handleSubmit]);
+  }, [webApp, decodedParams, appState, formMethods.formState.isValid, formMethods.formState.isSubmitting, onMainButtonClick]);
 
 
   if (appState === 'loading' || (!decodedParams && appState !== 'paramError')) {
