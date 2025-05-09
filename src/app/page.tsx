@@ -299,6 +299,7 @@ function TeleFormPageContent() {
     webApp.MainButton.disable();
 
     try {
+      console.log(decodedParams.callbackUrl);
       const response = await fetch(decodedParams.callbackUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
