@@ -297,7 +297,7 @@ function TeleFormPageContent() {
     webApp.MainButton.disable();
 
     const payload = {
-      ...formData,
+      form: formData,
       ...(decodedParams.metadata && { metadata: decodedParams.metadataEnc }),
       ...(decodedParams.signature && { signature: decodedParams.signatureEnc }),
     };
