@@ -1,7 +1,7 @@
 # TMAForm - Telegram Mini App Form Renderer
 
 > [!CAUTION]
-> This repository has been vibe-coded by Gemini 2.5 Pro Experimental on Firebase Studio, and has not bee reviewed by human eyes.
+> This repository has been vibe-coded by Gemini 2.5 Pro Experimental on Firebase Studio, and has not been reviewed by human eyes.
 
 > [!TIP]
 > Ideally, you should clone this repository and review the code manually before publishing it to any static site hosting platform.
